@@ -1,14 +1,29 @@
 use std::collections::HashMap;
 
-use scannerlib::nasl::syntax::{
-    Visitor,
-    grammar::{Ast, FnDecl},
-    walk_ast,
+use itertools::Itertools;
+use scannerlib::nasl::{
+    nasl_std_functions,
+    syntax::{
+        Visitor,
+        grammar::{Ast, FnDecl},
+        walk_ast,
+    },
 };
 
 #[derive(Default)]
 pub(crate) struct CachedFile {
     fns: HashMap<String, FnDecl>,
+}
+
+impl CachedFile {
+    pub(crate) fn new(ast: &Ast) -> Self {
+        let mut collector = FnDefinitionCollector::default();
+        walk_ast(&mut collector, ast);
+
+        CachedFile {
+            fns: collector.functions,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -17,14 +32,8 @@ pub(crate) struct Cache {
 }
 
 impl Cache {
-    pub fn add_file_functions(&mut self, file_path: String, ast: &Ast) {
-        let mut collector = FnDefinitionCollector::default();
-        walk_ast(&mut collector, ast);
-
-        let cached_file = CachedFile {
-            fns: collector.functions,
-        };
-        self.files.insert(file_path, cached_file);
+    pub(crate) fn insert(&mut self, rel_path: &str, file: CachedFile) {
+        self.files.insert(rel_path.to_owned(), file);
     }
 }
 
@@ -43,6 +52,10 @@ impl<'a> LintCtx<'a> {
             .files
             .values()
             .any(|file| file.fns.contains_key(fn_name))
+    }
+
+    pub(crate) fn builtin_defined(&self, fn_name: &str) -> bool {
+        nasl_std_functions().iter().contains(fn_name)
     }
 }
 
