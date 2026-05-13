@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later WITH x11vnc-openssl-exception
 
+use serde::Serializer;
+
 /// Represents a set of credentials to be used for scanning to access a host.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Credential {
@@ -87,6 +89,20 @@ impl TryFrom<&str> for Service {
     }
 }
 
+fn hide_pass<S>(_p: &String, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("***")
+}
+
+fn option_hide_pass<S>(_p: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("***")
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 /// Enum representing the type of credentials.
 pub enum CredentialType {
@@ -96,6 +112,7 @@ pub enum CredentialType {
         /// The username for authentication.
         username: String,
         /// The password for authentication.
+        #[serde(serialize_with = "hide_pass")]
         password: String,
         /// privilege credential only use for SSH service
         #[serde(default, flatten, skip_serializing_if = "Option::is_none")]
@@ -108,7 +125,7 @@ pub enum CredentialType {
         username: String,
         /// The password for authentication.
         // A key without passphrase can be expected
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "option_hide_pass")]
         password: Option<String>,
         #[serde(rename = "private")]
         /// The private key for authentication.
@@ -123,6 +140,7 @@ pub enum CredentialType {
         /// The SNMP username.
         username: String,
         /// The SNMP password.
+        #[serde(serialize_with = "hide_pass")]
         password: String,
         /// The SNMP community string.
         community: String,
@@ -135,6 +153,7 @@ pub enum CredentialType {
     },
     KRB5 {
         username: String,
+        #[serde(serialize_with = "hide_pass")]
         password: String,
         realm: String,
         kdc: String,
